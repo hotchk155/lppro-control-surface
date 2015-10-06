@@ -4,7 +4,9 @@ TOOLS = tools
 
 SOURCES += src/xapp.c
 SOURCES += src/control_surface.c
-SOURCES += src/piano_mode.c
+SOURCES += src/note_mode.c
+SOURCES += src/kit_mode.c
+SOURCES += src/setup_mode.c
 
 INCLUDES += -Iinclude -I
 
@@ -17,7 +19,6 @@ SYX = $(BUILDDIR)/launchpad_pro.syx
 ELF = $(BUILDDIR)/launchpad_pro.elf
 HEX = $(BUILDDIR)/launchpad_pro.hex
 HEXTOSYX = $(BUILDDIR)/hextosyx
-SIMULATOR = $(BUILDDIR)/simulator
 
 # tools
 HOST_GPP = g++
@@ -38,18 +39,13 @@ LDFLAGS += -T$(LDSCRIPT) -u _start -u _Minimum_Stack_Size  -mcpu=cortex-m3 -mthu
 
 all: $(SYX)
 
-# build the final sysex file from the ELF - run the simulator first
-$(SYX): $(HEX) $(HEXTOSYX) $(SIMULATOR)
-	./$(SIMULATOR)
+# build the final sysex file from the ELF 
+$(SYX): $(HEX) $(HEXTOSYX) 
 	./$(HEXTOSYX) $(HEX) $(SYX)
 
 # build the tool for conversion of ELF files to sysex, ready for upload to the unit
 $(HEXTOSYX):
 	$(HOST_GPP) -Ofast -std=c++0x -I./$(TOOLS)/libintelhex/include ./$(TOOLS)/libintelhex/src/intelhex.cc $(TOOLS)/hextosyx.cpp -o $(HEXTOSYX)
-
-# build the simulator (it's a very basic test of the code before it runs on the device!)
-$(SIMULATOR):
-	$(HOST_GCC) -g3 -O0 -std=c99 -Iinclude $(TOOLS)/simulator.c $(SOURCES) -o $(SIMULATOR)
 
 $(HEX): $(ELF)
 	$(OBJCOPY) -O ihex $< $@

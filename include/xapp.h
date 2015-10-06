@@ -139,6 +139,7 @@ typedef struct _XAPP_HANDLERS {
 extern XAPP_HANDLERS theApp;
 
 
+extern void XCls();
 extern void XSetLed(int index, COLOUR colour);
 extern COLOUR XGetLed(int index);
 extern void XSetLedEffect(int index, LED_EFFECT effect, byte param);

@@ -8,11 +8,6 @@
 #ifndef CONTROL_SURFACE_H_
 #define CONTROL_SURFACE_H_
 
-typedef struct _CONTROLLER_STATE {
-	byte dummy;
-} CONTROLLER_STATE;
-
-extern CONTROLLER_STATE Controller;
 
 typedef void(*PageInitFunc)();
 typedef void(*PageGridPressFunc)(byte row, byte col, BUTTON_ACTION type, byte press);
@@ -26,7 +21,19 @@ typedef struct _PAGE_HANDLERS {
 	PageRepaintFunc repaint;
 } PAGE_HANDLERS;
 
-extern PAGE_HANDLERS PianoMode;
+
+typedef enum _CTRL_MODE {
+	CTRL_MODE_NOTE,
+	CTRL_MODE_KIT
+} CTRL_MODE;
+
+
+extern PAGE_HANDLERS SetupMode;
+extern PAGE_HANDLERS NoteMode;
+extern PAGE_HANDLERS KitMode;
+
+CTRL_MODE CtrlGetMode();
+void CtrlSetMode(CTRL_MODE mode);
 
 
 #endif /* CONTROL_SURFACE_H_ */

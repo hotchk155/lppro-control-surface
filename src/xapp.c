@@ -110,10 +110,10 @@ static void updateLed(int index) {
 		}
 	}
 	if(index == 0) {
-		hal_plot_led(TYPESETUP, 0, red, green, blue);
+		hal_plot_led(TYPESETUP, 0, red>>2, green>>2, blue>>2);
 	}
 	else {
-		hal_plot_led(TYPEPAD, index, red, green, blue);
+		hal_plot_led(TYPEPAD, index, red>>2, green>>2, blue>>2);
 	}
 }
 
@@ -178,6 +178,16 @@ void stopAfterTouch(byte chan) {
  *
  * ----------------------------------------------------------------------------
  */
+
+/*
+ * Clear all grid and menu buttons
+ */
+void XCls() {
+	for(int index=0; index<100; ++index) {
+		Me.ledStates[index] = 0;
+		hal_plot_led(TYPEPAD, index, 0, 0, 0);
+	}
+}
 
 /*
  * LED ACCESS BASED ON RAW LED INDEX
