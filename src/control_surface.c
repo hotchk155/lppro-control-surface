@@ -31,7 +31,7 @@ static void implInit() {
 	SetupMode.init();
 	Me.controllerMode = CTRL_MODE_NOTE;
 	Me.currentPage = &NoteMode;
-	Me.currentPage->repaint();
+	Me.currentPage->activate();
 }
 static void implDone() {
 
@@ -58,9 +58,10 @@ static void implMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press) {
 				}
 			}
 			else {
+				Me.currentPage->deactivate();
 				Me.currentPage = &SetupMode;
 			}
-			Me.currentPage->repaint();
+			Me.currentPage->activate();
 		}
 	} else {
 		Me.currentPage->menuButton(which, type, press);
@@ -72,8 +73,6 @@ static void implMidiMsg(MIDI_MSG *msg) {
 static void implSysExMsg(byte *data, int count) {
 
 }
-
-
 
 
 

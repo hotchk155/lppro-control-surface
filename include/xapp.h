@@ -148,11 +148,17 @@ extern COLOUR XGetGridLed(int row, int col);
 extern void XSetGridLedEffect(int row, int col, LED_EFFECT effect, byte param);
 extern void XSetMenuLed(MNU_BUTTON button, COLOUR colour);
 extern COLOUR XGetMenuLed(MNU_BUTTON button);
-extern void XSetGridLedEffect(int row, int col, LED_EFFECT effect, byte param);
+extern void XSetMenuLedEffect(MNU_BUTTON button, LED_EFFECT effect, byte param);
 extern void XSetMidiChannel(byte chan);
 extern byte XGetMidiChannel();
 extern void XStartNote(byte note, byte velocity);
 extern void XStopNote(byte note);
 extern void XAfterTouch(byte note, byte pressure);
+extern AFTERTOUCH_MODE XGetAftertouchMode();
+extern void XSetAftertouchMode(AFTERTOUCH_MODE afterMode);
+extern AFTERTOUCH_THRESHOLD XGetAftertouchThreshold();
+extern void XSetAftertouchThreshold(AFTERTOUCH_THRESHOLD afterThreshold);
+extern VELOCITY_MODE XGetVelocityMode();
+extern void XSetVelocityMode(VELOCITY_MODE velocityMode);
 
 #endif /* XAPP_H_ */

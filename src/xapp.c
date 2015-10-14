@@ -102,7 +102,7 @@ static void updateLed(int index) {
 	if(Me.ledStates[index] & 0xFF000000) { // some kind of effect in .. effect?
 		if((Me.ledStates[index] & 0xFF000000) == 0x80000000) { // blink
 			if(Me.blinkToggle) {
-				red = green = blue = 0xFF;
+				red = green = blue = 0x00;
 			}
 		}
 		else { // highlight or fade
@@ -169,6 +169,23 @@ void stopAfterTouch(byte chan) {
 	}
 	Me.channelAfterTouch = 0;
 }
+
+/*
+ * VELOCITY SCALING
+ */
+byte scaleVelocity(byte value) {
+	//TODO: Apply velocity scaling
+	switch(Me.velocityMode) {
+	case VELOCITY_OFF:
+		return value ? 0x7F : 0x00;
+	case VELOCITY_LOW:
+	case VELOCITY_MEDIUM:
+	case VELOCITY_HIGH:
+	default:
+		return value;
+	}
+}
+
 
 /* ----------------------------------------------------------------------------
  *
@@ -291,6 +308,55 @@ byte XGetMidiChannel() {
 }
 
 /*
+ * AFTERTOUCH MODE ACCESSORS
+ */
+AFTERTOUCH_MODE XGetAftertouchMode() {
+	return Me.afterMode;
+}
+void XSetAftertouchMode(AFTERTOUCH_MODE afterMode) {
+	switch(afterMode) {
+	case AFTERTOUCH_OFF:
+	case AFTERTOUCH_POLY:
+	case AFTERTOUCH_CHANNEL:
+		Me.afterMode = afterMode;
+		break;
+	}
+}
+
+/*
+ * AFTERTOUCH THRESHOLD ACCESSORS
+ */
+AFTERTOUCH_THRESHOLD XGetAftertouchThreshold() {
+	return Me.afterThreshold;
+}
+void XSetAftertouchThreshold(AFTERTOUCH_THRESHOLD afterThreshold) {
+	switch(afterThreshold) {
+	case AFTERTOUCH_LOW:
+	case AFTERTOUCH_MEDIUM:
+	case AFTERTOUCH_HIGH:
+		Me.afterThreshold = afterThreshold;
+		break;
+	}
+}
+
+/*
+ * VELOCITY MODE ACCESSORS
+ */
+VELOCITY_MODE XGetVelocityMode() {
+	return Me.velocityMode;
+}
+void XSetVelocityMode(VELOCITY_MODE velocityMode) {
+	switch(velocityMode) {
+	case VELOCITY_OFF:
+	case VELOCITY_LOW:
+	case VELOCITY_MEDIUM:
+	case VELOCITY_HIGH:
+		Me.velocityMode = velocityMode;
+		break;
+	}
+}
+
+/*
  * MIDI NOTE MESSAGES
  */
 void XStartNote(byte note, byte velocity) {
@@ -339,7 +405,6 @@ void XAfterTouch(byte note, byte pressure) {
  */
 void app_surface_event(u8 type, u8 index, u8 value)
 {
-	//TODO: Apply velocity scaling
 	BUTTON_ACTION action = value ? BUTTON_PRESS : BUTTON_RELEASE;
 	switch (type)
 	{
@@ -360,7 +425,7 @@ void app_surface_event(u8 type, u8 index, u8 value)
 					break;
 				default:
 					// grid
-					theApp.gridPress(8-index/10, index%10-1, action, value);
+					theApp.gridPress(8-index/10, index%10-1, action, scaleVelocity(value));
 					break;
 				}
 			}
@@ -396,16 +461,18 @@ void app_sysex_event(u8 port, u8 * data, u16 count)
   */
 void app_aftertouch_event(u8 index, u8 value)
 {
-	//TODO: Apply aftertouch threshold and scaling
+	if(Me.afterMode != AFTERTOUCH_OFF) {
+		//TODO: Apply aftertouch threshold and scaling
 
-	if(index >= 10 && index < 89) {
-		switch(index%10) {
-		case 0:
-		case 9:
-			break;
-		default:
-			theApp.gridPress(8-index/10, index%10-1, BUTTON_AFTERTOUCH, value);
-			break;
+		if(index >= 10 && index < 89) {
+			switch(index%10) {
+			case 0:
+			case 9:
+				break;
+			default:
+				theApp.gridPress(8-index/10, index%10-1, BUTTON_AFTERTOUCH, value);
+				break;
+			}
 		}
 	}
 }
@@ -424,10 +491,8 @@ void app_timer_event()
 {
 	++Me.milliseconds;
 	if(!(Me.milliseconds & 0xFF)) {
-		updateFade();
-	}
-	if(!(Me.milliseconds & 0x1FF)) {
 		Me.blinkToggle = !Me.blinkToggle;
+		updateFade();
 		refreshBlinkLeds();
 	}
 }

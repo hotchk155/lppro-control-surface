@@ -18,12 +18,13 @@
 static void handleInit();
 static void handleGridPress(byte row, byte col, BUTTON_ACTION type, byte press);
 static void handleMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press);
-static void handleRepaint();
+static void handleActivate();
+static void handleDeactivate();
 
 /*
  * EXPORT PAGE HANDLERS INTERFACE
  */
-PAGE_HANDLERS NoteMode = {	handleInit, handleGridPress, handleMenuButton, handleRepaint};
+PAGE_HANDLERS NoteMode = {	handleInit, handleGridPress, handleMenuButton, handleActivate, handleDeactivate};
 
 #define NO_NOTE ((byte)0xff)
 #define MIN_OCTAVE 0
@@ -168,6 +169,17 @@ static void repaintScrollbar() {
 	}
 }
 
+static void repaint() {
+	XCls();
+	XSetMenuLed(CMD_OCTAVE_UP, COLOUR_WHITE);
+	XSetMenuLed(CMD_OCTAVE_DOWN, COLOUR_WHITE);
+	XSetMenuLed(CMD_TRANSPOSE_UP, COLOUR_WHITE);
+	XSetMenuLed(CMD_TRANSPOSE_DOWN, COLOUR_WHITE);
+
+	repaintGrid();
+	repaintScrollbar();
+}
+
 /*
  * transpose the keyboard
  */
@@ -221,7 +233,7 @@ static void transpose(int cmd) {
 		Me.octave = octave;
 		Me.transpose = transpose;
 		configGridChromatic();
-		handleRepaint();
+		repaint();
 	}
 }
 
@@ -330,16 +342,11 @@ void handleMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press) {
 	}
 }
 
-/*
- * REPAINT
- */
-void handleRepaint() {
-	XCls();
-	XSetMenuLed(CMD_OCTAVE_UP, COLOUR_WHITE);
-	XSetMenuLed(CMD_OCTAVE_DOWN, COLOUR_WHITE);
-	XSetMenuLed(CMD_TRANSPOSE_UP, COLOUR_WHITE);
-	XSetMenuLed(CMD_TRANSPOSE_DOWN, COLOUR_WHITE);
 
-	repaintGrid();
-	repaintScrollbar();
+
+void handleActivate() {
+	repaint();
+}
+void handleDeactivate() {
+	//TODO kill MIDI notes
 }

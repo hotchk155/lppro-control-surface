@@ -12,13 +12,15 @@
 typedef void(*PageInitFunc)();
 typedef void(*PageGridPressFunc)(byte row, byte col, BUTTON_ACTION type, byte press);
 typedef void(*PageMenuButtonFunc)(MNU_BUTTON which, BUTTON_ACTION type, byte press);
-typedef void(*PageRepaintFunc)();
+typedef void(*PageActivateFunc)();
+typedef void(*PageDeactivateFunc)();
 
 typedef struct _PAGE_HANDLERS {
 	PageInitFunc init;
 	PageGridPressFunc gridPress;
 	PageMenuButtonFunc menuButton;
-	PageRepaintFunc repaint;
+	PageActivateFunc activate;
+	PageDeactivateFunc deactivate;
 } PAGE_HANDLERS;
 
 

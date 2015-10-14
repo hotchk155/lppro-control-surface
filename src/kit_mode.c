@@ -18,21 +18,26 @@
 static void handleInit();
 static void handleGridPress(byte row, byte col, BUTTON_ACTION type, byte press);
 static void handleMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press);
-static void handleRepaint();
+static void handleActivate();
+static void handleDeactivate();
 
 /*
  * EXPORT PAGE HANDLERS INTERFACE
  */
-PAGE_HANDLERS KitMode = {	handleInit, handleGridPress, handleMenuButton, handleRepaint};
+PAGE_HANDLERS KitMode = {	handleInit, handleGridPress, handleMenuButton, handleActivate, handleDeactivate};
 
-#define CMD_PAGE1		MNU_RECORDARM
-#define CMD_PAGE2		MNU_TRACKSELECT
-#define CMD_LAYOUT		MNU_MUTE
-#define CMD_CANCEL		MNU_STOPCLIP
+#define CMD_PAGE1		MNU_VOLUME
+#define CMD_PAGE2		MNU_PAN
+#define CMD_PAGE3		MNU_SENDS
+#define CMD_LAYOUT		MNU_STOPCLIP
+#define CMD_SELECT		MNU_RECORDARM
+#define CMD_CANCEL		MNU_TRACKSELECT
 
+#define COLOUR_SELECT	0xFF0000
 #define COLOUR_PAGE1	0x00FF33
-#define COLOUR_PAGE2	0x0033FF
-#define COLOUR_LAYOUT	0x3333FF
+#define COLOUR_PAGE2	0x3333FF
+#define COLOUR_PAGE3	0x0033FF
+#define COLOUR_LAYOUT	0xFFFF00
 #define COLOUR_MAPPED	0xFFFF00
 #define COLOUR_CANCEL	0xFFFFFF
 #define COLOUR_SELECTED	0xFF0000
@@ -40,14 +45,13 @@ PAGE_HANDLERS KitMode = {	handleInit, handleGridPress, handleMenuButton, handleR
 enum {
 	PAGE_NOTES1 = 0x01,
 	PAGE_NOTES2 = 0x02,
-	PAGE_LAYOUT = 0x04
+	PAGE_NOTES3 = 0x04,
+	PAGE_LAYOUT = 0x08
 };
 
 enum {
-	SHIFT_NOTES1 = 0x01,
-	SHIFT_NOTES2 = 0x02,
-	SHIFT_LAYOUT = 0x04,
-	SHIFT_CANCEL  = 0x08
+	SHIFT_SELECT = 0x01,
+	SHIFT_CANCEL  = 0x02
 };
 
 
@@ -71,7 +75,7 @@ typedef struct _KITLOCATION {
 } KITLOCATION;
 
 
-#define MAX_SELECTION 20
+#define MAX_SELECTION 64
 
 typedef struct _KIT_DATA {
 	NOTEINFO notes[128];
@@ -101,7 +105,7 @@ static KIT_DATA Me = {0};
  * ------------------------------------------------
  */
 
-void repaintNotes1() {
+static void repaintNotes1() {
 	int index = 0;
 	for(int row = 7; row >= 0; --row) {
 		for(int col = 0; col < 8; ++col) {
@@ -117,7 +121,26 @@ void repaintNotes1() {
 		}
 	}
 }
-void repaintNotes2() {
+static void repaintNotes2() {
+	int index = 32;
+	for(int row = 7; row >= 0; --row) {
+		for(int col = 0; col < 8; ++col) {
+			if(Me.notes[index].flags & FLAG_SELECTED) {
+				XSetGridLed(row, col, COLOUR_SELECTED);
+			}
+			else if(Me.notes[index].flags & FLAG_MAPPED) {
+				XSetGridLed(row, col, COLOUR_MAPPED);
+			} else if(index < 64) {
+				XSetGridLed(row, col, COLOUR_PAGE1);
+			}
+			else {
+				XSetGridLed(row, col, COLOUR_PAGE3);
+			}
+			++index;
+		}
+	}
+}
+static void repaintNotes3() {
 	int index = 64;
 	for(int row = 7; row >= 0; --row) {
 		for(int col = 0; col < 8; ++col) {
@@ -127,13 +150,13 @@ void repaintNotes2() {
 			else if(Me.notes[index].flags & FLAG_MAPPED) {
 				XSetGridLed(row, col, COLOUR_MAPPED);
 			} else {
-				XSetGridLed(row, col, COLOUR_PAGE2);
+				XSetGridLed(row, col, COLOUR_PAGE3);
 			}
 			++index;
 		}
 	}
 }
-void repaintLayout() {
+static void repaintLayout() {
 	int index = 0;
 	for(int row = 0; row < 8; ++row) {
 		for(int col = 0; col < 8; ++col) {
@@ -149,6 +172,32 @@ void repaintLayout() {
 			}
 			++index;
 		}
+	}
+}
+
+static void repaint() {
+	XCls();
+	XSetMenuLed(CMD_SELECT, COLOUR_SELECT);
+	XSetMenuLed(CMD_CANCEL, COLOUR_CANCEL);
+	XSetMenuLed(CMD_PAGE1, COLOUR_PAGE1);
+	XSetMenuLed(CMD_PAGE2, COLOUR_PAGE2);
+	XSetMenuLed(CMD_PAGE3, COLOUR_PAGE3);
+	XSetMenuLed(CMD_LAYOUT, COLOUR_LAYOUT);
+	XSetMenuLedEffect(CMD_SELECT, (Me.selectionCount > 0) ? EFFECT_BLINK : EFFECT_NONE, 0);
+
+	switch(Me.page) {
+	case PAGE_NOTES1:
+		repaintNotes1();
+		break;
+	case PAGE_NOTES2:
+		repaintNotes2();
+		break;
+	case PAGE_NOTES3:
+		repaintNotes3();
+		break;
+	case PAGE_LAYOUT:
+		repaintLayout();
+		break;
 	}
 }
 
@@ -178,28 +227,6 @@ void handleInit() {
 }
 
 
-/*
- * HANDLE A KEYPRESS ON GRID NOTE
- */
-void playNote(byte note, byte row, byte col, BUTTON_ACTION type, byte press) {
-	switch(type) {
-	case BUTTON_PRESS:
-		XStartNote(note, press);
-		XSetGridLedEffect(row, col, EFFECT_HIGHLIGHT, press);
-		Me.notes[note].flags |= FLAG_HELD;
-		break;
-	case BUTTON_RELEASE:
-		XStopNote(note);
-		XSetGridLedEffect(row, col, EFFECT_NONE, press);
-		Me.notes[note].flags &= ~FLAG_HELD;
-		break;
-	case BUTTON_AFTERTOUCH:
-		XAfterTouch(note, press);
-		XSetGridLedEffect(row, col, EFFECT_HIGHLIGHT, press);
-		Me.notes[note].flags |= FLAG_HELD;
-		break;
-	}
-}
 
 static void pasteNote(byte row, byte col) {
 
@@ -231,7 +258,7 @@ static void pasteNote(byte row, byte col) {
 			Me.selection[i] = Me.selection[i+1];
 		}
 
-		handleRepaint();
+		repaint();
 	}
 }
 
@@ -259,7 +286,7 @@ static void cutCopyNote(byte note) {
 		Me.selection[Me.selectionCount++] = note;
 		Me.notes[note].flags = FLAG_SELECTED;
 	}
-	handleRepaint();
+	repaint();
 }
 
 
@@ -273,7 +300,7 @@ static void deleteNote(byte note) {
 					Me.kit[i].note = NO_NOTE;
 				}
 			}
-			handleRepaint();
+			repaint();
 		}
 	}
 }
@@ -289,7 +316,7 @@ static void cancelSelection() {
 	}
 	if(Me.selectionCount > 0 || refresh) {
 		Me.selectionCount = 0;
-		handleRepaint();
+		repaint();
 	}
 }
 
@@ -303,8 +330,11 @@ void handleGridPress(byte row, byte col, BUTTON_ACTION type, byte press) {
 	case PAGE_LAYOUT:
 		note = Me.kit[8*row + col].note;
 		break;
-	case PAGE_NOTES2:
+	case PAGE_NOTES3:
 		note = 64 + 8*(7-row) + col;
+		break;
+	case PAGE_NOTES2:
+		note = 32 + 8*(7-row) + col;
 		break;
 	case PAGE_NOTES1:
 	default:
@@ -312,16 +342,17 @@ void handleGridPress(byte row, byte col, BUTTON_ACTION type, byte press) {
 		break;
 	}
 
-	if(type == BUTTON_PRESS) {
+	switch(type) {
+	case BUTTON_PRESS:
 		// pressing an empty location?
 		if(note == NO_NOTE) {
 			// are we on the kit page, with the page button down
 			// (paste gesture)
-			if(Me.page == PAGE_LAYOUT && (Me.shift & SHIFT_LAYOUT)) {
+			if(Me.page == PAGE_LAYOUT) {
 				pasteNote(row, col);
 			}
 		}
-		else if(Me.shift == Me.page) {
+		else if(Me.shift & SHIFT_SELECT) {
 			// cut/copy the note
 			cutCopyNote(note);
 		}
@@ -330,12 +361,24 @@ void handleGridPress(byte row, byte col, BUTTON_ACTION type, byte press) {
 		}
 		else {
 			// play the note
-			playNote(note, row, col, type, press);
+			XStartNote(note, press);
+			XSetGridLedEffect(row, col, EFFECT_HIGHLIGHT, press);
+			Me.notes[note].flags |= FLAG_HELD;
 		}
-	}
-	else if(note != NO_NOTE){
-		// play the note
-		playNote(note, row, col, type, press);
+		break;
+	case BUTTON_RELEASE:
+		if(note != NO_NOTE && (Me.notes[note].flags & FLAG_HELD)) {
+			XStopNote(note);
+			XSetGridLedEffect(row, col, EFFECT_NONE, press);
+			Me.notes[note].flags &= ~FLAG_HELD;
+		}
+		break;
+	case BUTTON_AFTERTOUCH:
+		if(note != NO_NOTE && !(Me.shift & SHIFT_SELECT) && (Me.notes[note].flags & FLAG_HELD)) {
+			XAfterTouch(note, press);
+			XSetGridLedEffect(row, col, EFFECT_HIGHLIGHT, press);
+		}
+		break;
 	}
 }
 
@@ -349,18 +392,21 @@ void handleMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press) {
 	switch(which) {
 		case CMD_PAGE1:
 			page = PAGE_NOTES1;
-			shift = SHIFT_NOTES1;
 			break;
 		case CMD_PAGE2:
 			page = PAGE_NOTES2;
-			shift = SHIFT_NOTES2;
+			break;
+		case CMD_PAGE3:
+			page = PAGE_NOTES3;
 			break;
 		case CMD_LAYOUT:
 			page = PAGE_LAYOUT;
-			shift = SHIFT_LAYOUT;
 			break;
 		case CMD_CANCEL:
 			shift = SHIFT_CANCEL;
+			break;
+		case CMD_SELECT:
+			shift = SHIFT_SELECT;
 			break;
 	}
 
@@ -371,7 +417,7 @@ void handleMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press) {
 		Me.shift |= shift;
 		if(page != Me.page) {
 			Me.page = page;
-			handleRepaint();
+			repaint();
 		}
 	}
 	else if(type == BUTTON_RELEASE) {
@@ -379,24 +425,10 @@ void handleMenuButton(MNU_BUTTON which, BUTTON_ACTION type, byte press) {
 	}
 }
 
-/*
- * REPAINT
- */
-void handleRepaint() {
-	XCls();
-	XSetMenuLed(CMD_PAGE1, COLOUR_PAGE1);
-	XSetMenuLed(CMD_PAGE2, COLOUR_PAGE2);
-	XSetMenuLed(CMD_LAYOUT, Me.selectionCount > 0 ? COLOUR_SELECTED : COLOUR_LAYOUT);
-	XSetMenuLed(CMD_CANCEL, COLOUR_CANCEL);
-	switch(Me.page) {
-	case PAGE_NOTES1:
-		repaintNotes1();
-		break;
-	case PAGE_NOTES2:
-		repaintNotes2();
-		break;
-	case PAGE_LAYOUT:
-		repaintLayout();
-		break;
-	}
+
+void handleActivate() {
+	repaint();
+}
+void handleDeactivate() {
+	//TODO kill midi notes
 }
